@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomodoro Timer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 2rem;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 2.5rem;
+    }
+
+    .mode-btn {
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid #444;
+      background: transparent;
+      color: #aaa;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-btn.active {
+      background: #e63946;
+      border-color: #e63946;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .timer-ring {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      margin-bottom: 2rem;
+    }
+
+    .timer-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg { fill: none; stroke: #2a2a4a; stroke-width: 8; }
+    .ring-progress { fill: none; stroke: #e63946; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+
+    .timer-display {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .time-text {
+      font-size: 3.5rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .mode-label {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 6px;
+      letter-spacing: 0.1em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .btn-main {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: none;
+      background: #e63946;
+      color: #fff;
+      font-size: 1.6rem;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-main:hover { background: #ff4d5b; }
+    .btn-main:active { transform: scale(0.95); }
+
+    .btn-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid #444;
+      background: transparent;
+      color: #aaa;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-icon:hover { border-color: #888; color: #eee; }
+
+    .stats {
+      display: flex;
+      gap: 32px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 300;
+      color: #e63946;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #666;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .session-dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 1.5rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #333;
+      transition: background 0.3s;
+    }
+
+    .dot.done { background: #e63946; }
+    .dot.current { background: #ff8c94; }
+
+    #notify-msg {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: #e63946;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    #notify-msg.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<h1>Pomodoro</h1>
+
+<div class="mode-tabs">
+  <button class="mode-btn active" onclick="setMode('work')">作業</button>
+  <button class="mode-btn" onclick="setMode('short')">小休憩</button>
+  <button class="mode-btn" onclick="setMode('long')">長休憩</button>
+</div>
+
+<div class="timer-ring">
+  <svg width="260" height="260" viewBox="0 0 260 260">
+    <circle class="ring-bg" cx="130" cy="130" r="118"/>
+    <circle class="ring-progress" id="ring" cx="130" cy="130" r="118"/>
+  </svg>
+  <div class="timer-display">
+    <div class="time-text" id="time-display">25:00</div>
+    <div class="mode-label" id="mode-label">作業時間</div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn-icon" onclick="resetTimer()" title="リセット">↺</button>
+  <button class="btn-main" id="start-btn" onclick="toggleTimer()">▶</button>
+  <button class="btn-icon" onclick="skipSession()" title="スキップ">⏭</button>
+</div>
+
+<div class="stats">
+  <div>
+    <div class="stat-value" id="stat-pomodoros">0</div>
+    <div class="stat-label">完了セッション</div>
+  </div>
+  <div>
+    <div class="stat-value" id="stat-focus">0</div>
+    <div class="stat-label">集中 (分)</div>
+  </div>
+</div>
+
+<div class="session-dots" id="session-dots"></div>
+
+<div id="notify-msg"></div>
+
+<script>
+  const MODES = {
+    work:  { label: '作業時間',  seconds: 25 * 60, color: '#e63946' },
+    short: { label: '小休憩',    seconds:  5 * 60, color: '#2a9d8f' },
+    long:  { label: '長休憩',    seconds: 15 * 60, color: '#457b9d' },
+  };
+
+  const CIRCUMFERENCE = 2 * Math.PI * 118;
+
+  let mode = 'work';
+  let remaining = MODES.work.seconds;
+  let total = MODES.work.seconds;
+  let running = false;
+  let interval = null;
+  let completedPomodoros = 0;
+  let focusMinutes = 0;
+  let sessionInCycle = 0;
+
+  const ring = document.getElementById('ring');
+  const timeDisplay = document.getElementById('time-display');
+  const modeLabel = document.getElementById('mode-label');
+  const startBtn = document.getElementById('start-btn');
+  const statPomodoros = document.getElementById('stat-pomodoros');
+  const statFocus = document.getElementById('stat-focus');
+  const sessionDots = document.getElementById('session-dots');
+  const notifyMsg = document.getElementById('notify-msg');
+
+  ring.style.strokeDasharray = CIRCUMFERENCE;
+  ring.style.strokeDashoffset = 0;
+
+  function setMode(m) {
+    if (running) toggleTimer();
+    mode = m;
+    remaining = MODES[m].seconds;
+    total = MODES[m].seconds;
+    updateDisplay();
+    document.querySelectorAll('.mode-btn').forEach((b, i) => {
+      b.classList.toggle('active', ['work','short','long'][i] === m);
+    });
+    ring.style.stroke = MODES[m].color;
+    document.querySelector('.btn-main').style.background = MODES[m].color;
+  }
+
+  function updateDisplay() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    timeDisplay.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    modeLabel.textContent = MODES[mode].label;
+    const progress = remaining / total;
+    ring.style.strokeDashoffset = CIRCUMFERENCE * progress;
+    document.title = timeDisplay.textContent + ' — Pomodoro';
+  }
+
+  function toggleTimer() {
+    if (running) {
+      clearInterval(interval);
+      running = false;
+      startBtn.textContent = '▶';
+    } else {
+      running = true;
+      startBtn.textContent = '⏸';
+      interval = setInterval(tick, 1000);
+    }
+  }
+
+  function tick() {
+    remaining--;
+    if (mode === 'work') focusMinutes = Math.round((MODES.work.seconds - remaining) / 60);
+    updateDisplay();
+    if (remaining <= 0) {
+      clearInterval(interval);
+      running = false;
+      startBtn.textContent = '▶';
+      onSessionEnd();
+    }
+  }
+
+  function onSessionEnd() {
+    if (mode === 'work') {
+      completedPomodoros++;
+      focusMinutes += 25;
+      sessionInCycle++;
+      statPomodoros.textContent = completedPomodoros;
+      statFocus.textContent = focusMinutes;
+      updateDots();
+      notify('作業完了！休憩しましょう 🎉');
+      const nextMode = sessionInCycle % 4 === 0 ? 'long' : 'short';
+      setTimeout(() => setMode(nextMode), 1500);
+    } else {
+      notify('休憩終了！作業を再開しましょう');
+      setTimeout(() => setMode('work'), 1500);
+    }
+  }
+
+  function resetTimer() {
+    if (running) toggleTimer();
+    remaining = MODES[mode].seconds;
+    total = MODES[mode].seconds;
+    updateDisplay();
+  }
+
+  function skipSession() {
+    if (running) toggleTimer();
+    onSessionEnd();
+  }
+
+  function updateDots() {
+    const cycle = sessionInCycle % 4 || 4;
+    sessionDots.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i < cycle - 1 ? ' done' : i === cycle - 1 ? ' current' : '');
+      sessionDots.appendChild(dot);
+    }
+  }
+
+  function notify(msg) {
+    notifyMsg.textContent = msg;
+    notifyMsg.classList.add('show');
+    setTimeout(() => notifyMsg.classList.remove('show'), 2500);
+  }
+
+  updateDisplay();
+  updateDots();
+</script>
+</body>
+</html>
