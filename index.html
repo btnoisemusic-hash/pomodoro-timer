@@ -306,7 +306,6 @@
   function onSessionEnd() {
     if (mode === 'work') {
       completedPomodoros++;
-      focusMinutes += 25;
       sessionInCycle++;
       statPomodoros.textContent = completedPomodoros;
       statFocus.textContent = focusMinutes;
@@ -333,11 +332,11 @@
   }
 
   function updateDots() {
-    const cycle = sessionInCycle % 4 || 4;
     sessionDots.innerHTML = '';
     for (let i = 0; i < 4; i++) {
       const dot = document.createElement('div');
-      dot.className = 'dot' + (i < cycle - 1 ? ' done' : i === cycle - 1 ? ' current' : '');
+      const pos = sessionInCycle % 4;
+      dot.className = 'dot' + (i < pos ? ' done' : i === pos ? ' current' : '');
       sessionDots.appendChild(dot);
     }
   }
